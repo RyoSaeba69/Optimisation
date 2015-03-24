@@ -1,0 +1,303 @@
+/*_________________________________________________________
+
+Test functions
+log normal adaptive mutation
+Selection operator: Tournament
+__________________________________________________________*/
+
+\User declarations :
+#define SIZE 100
+#define SIGMA  1.                     /*  mutation parameter */
+
+#define MAX_PAPERS 155
+#define PAP_KEYW 15
+#define PAP_AUTH 10
+#define PAP_INST 10
+#define WILL_AUTH 100
+#define UNWILL_AUTH 100
+
+#define MAX_REVIEWERS 178
+#define REV_KEYW 20
+#define REV_WILL 50
+#define REV_UNWILL 200
+
+#define REV_PER_PAPER 4
+
+int ppsn_EVALUATED_GENERATIONS=0;
+int ppsn_NB_EVALUATIONS=0;
+clock_t   ppsn_START, ppsn_FINISH;
+double EZ_EVAL=0; // Time spent in the evaluator
+double ppsn_LET=0; // Last Elapsed Time
+double ppsn_LERT=1; // Last Evaluated Remaining Time
+float ReplPerc=0;
+int NbGen, PSize;
+
+float pMutPerGene=0.1;
+
+\end
+
+\User functions:
+#include <math.h>
+#include <time.h>
+int PAPERS, REVIEWERS;
+
+struct PaperInfo {int Id;
+       char Title[130];
+       char Keyword[PAP_KEYW][35];
+       char Author[PAP_AUTH][25];
+       char Institution[PAP_INST][25];
+       int WillingAuthor[WILL_AUTH];
+       int UnwillingAuthor[UNWILL_AUTH];
+      } PAPER[MAX_PAPERS];
+
+struct ReviewerInfo {int Id;
+       char Name[25];
+       char Keyword[REV_KEYW][35];
+       char Institution[25];
+       int Willing[REV_WILL];
+       int Unwilling[REV_UNWILL];
+      } REVIEWER[MAX_REVIEWERS];
+
+FILE *fpPapers, *fpReviewers;
+FILE *fpWilling, *fpUnwilling;
+
+inline char  mytolower(char c) {
+  return ((c>=65)&&(c<=91)) ? c-=64:c;
+}
+
+inline int mystricmp(char *string1, char *string2){
+  int i;
+  for (i=0; string1[i]&&string2[i];i++){
+    if (mytolower(string1[i])<mytolower(string2[i])) return -(i+1);
+    if (mytolower(string1[i])>mytolower(string2[i])) return i+1;
+  }
+  if (string2[i]) return  -(i+1);
+  if (string1[i]) return  i+1;
+  return 0;
+}
+
+\end
+
+\User CUDA:
+\end
+
+\Before everything else function:
+{
+  int i,j,k,Id,lastPaper,currentPaper;
+  char *p,szTemp[1000];
+
+  fpPapers=fopen("papers.txt","r");
+  fpReviewers=fopen("review.txt","r");
+  fpWilling=fopen("wil.txt","r");
+  fpUnwilling=fopen("unw.txt","r");
+
+  for (i=0;i<MAX_PAPERS;i++) {
+    strcpy(PAPER[i].Title," ");
+    for (j=0;j<PAP_KEYW;j++) strcpy(PAPER[i].Keyword[j]," ");
+    for (j=0;j<PAP_AUTH;j++) strcpy(PAPER[i].Author[j]," ");
+    for (j=0;j<PAP_INST;j++) strcpy(PAPER[i].Institution[j]," ");
+    for (j=0;j<WILL_AUTH;j++) PAPER[i].WillingAuthor[j]=999;
+    for (j=0;j<UNWILL_AUTH;j++) PAPER[i].UnwillingAuthor[j]=999;
+  }
+  for (i=0;i<MAX_REVIEWERS;i++) {
+    REVIEWER[i].Id=97834;
+    strcpy(REVIEWER[i].Name," ");
+    for (j=0;j<REV_KEYW;j++) strcpy(REVIEWER[i].Keyword[j]," ");
+    strcpy(REVIEWER[i].Institution," ");
+    for (j=0;j<REV_WILL;j++) REVIEWER[i].Willing[j]=999;
+    for (j=0;j<REV_UNWILL;j++) REVIEWER[i].Unwilling[j]=999;
+  }
+  lastPaper=i=-1;
+
+  while (i+1<MAX_PAPERS){
+    if (fscanf(fpPapers,"| %d | ",&currentPaper)==EOF)break;
+    if (currentPaper!=lastPaper) { // We have a new paper
+      i++;
+      lastPaper=PAPER[i].Id=currentPaper;
+      if (fscanf(fpPapers,"%[^|] | ",PAPER[i].Title)==0) fscanf(fpPapers," | ");
+      if (fscanf(fpPapers,"%[^|] | ",PAPER[i].Author[0])==0) fscanf(fpPapers," | ");
+      if (fscanf(fpPapers,"%[^|] | ",szTemp)==0) fscanf(fpPapers," | ");
+      for (p=&(szTemp[strlen(szTemp)-1]);(*p==' ')&&(p!=&szTemp[0]);p--); *(p+1)=0;
+      if (p!=&szTemp[0]) {
+        for (;(*p!='.')&&(p!=&szTemp[0]);p--); for (p--;(*p!='.')&&(*p!='@')&&(p!=&szTemp[0]);p--);
+        strcpy(PAPER[i].Institution[0],p+1);
+      }
+      for (j=0;j<PAP_KEYW;j++) {
+        fscanf(fpPapers," %[^,|]",&(PAPER[i].Keyword[j])); 
+        for (k=strlen(PAPER[i].Keyword[j])-1;(PAPER[i].Keyword[j][k]==' ')&&(k>0);k--);PAPER[i].Keyword[j][k+1]=0;// remove trailing spaces
+        if(getc(fpPapers)=='|') break;
+      }
+    }
+    else {// another line for the same paper
+      if (fscanf(fpPapers,"%[^|] | ",szTemp)==0) fscanf(fpPapers," | ");
+      for (k=0;(k<PAP_AUTH);k++)     // looking for an empty space
+        if ((PAPER[i].Author[k])[0]==' ') break; 
+      if (fscanf(fpPapers,"%[^|] | ",PAPER[i].Author[k])==0) fscanf(fpPapers," | ");
+      if (fscanf(fpPapers,"%[^|] | ",szTemp)==0) fscanf(fpPapers," | ");
+      for (p=&(szTemp[strlen(szTemp)-1]);(*p==' ')&&(p!=&szTemp[0]);p--); *(p+1)=0;
+      if (p!=&szTemp[0]) {
+        for (;(*p!='.')&&(p!=&szTemp[0]);p--); for (p--;(*p!='.')&&(*p!='@')&&(p!=&szTemp[0]);p--);
+        strcpy(PAPER[i].Institution[k],p+1);
+      }
+      fscanf(fpPapers,"%[^\n]",szTemp);
+    }
+    getc(fpPapers);
+  }
+  PAPERS=i+1;
+
+  for (i=0;i<MAX_REVIEWERS;i++) {
+    if (fscanf(fpReviewers,"| %d | ",&(REVIEWER[i].Id))==EOF)break;
+    if (fscanf(fpReviewers,"%[^|] | ",REVIEWER[i].Name)==0) fscanf(fpReviewers," | ");
+    if (fscanf(fpReviewers,"%[^|] | ",szTemp)==0) fscanf(fpReviewers," | ");
+    for (p=&(szTemp[strlen(szTemp)-1]);(*p==' ')&&(p!=&szTemp[0]);p--); *(p+1)=0;
+    if (p!=&szTemp[0]) {for (;(*p!='.')&&(p!=&szTemp[0]);p--); for (p--;(*p!='.')&&(*p!='@')&&(p!=&szTemp[0]);p--);strcpy(REVIEWER[i].Institution,p+1);}
+    for (j=0;j<REV_KEYW;j++) {
+      fscanf(fpReviewers," %[^,|]",&(REVIEWER[i].Keyword[j])); 
+      for (k=strlen(REVIEWER[i].Keyword[j])-1;(REVIEWER[i].Keyword[j][k]==' ')&&(k>0);k--);REVIEWER[i].Keyword[j][k+1]=0;// remove trailing spaces
+      if(getc(fpReviewers)=='|') break;
+    }
+    getc(fpReviewers);
+  }
+  REVIEWERS=i;
+
+  while (1){
+    if (fscanf(fpWilling,"| %d | ",&Id)==EOF)break;
+    for(i=0;REVIEWER[i].Id!=Id;i++);
+    fscanf(fpWilling,"%d | yes    |",&j);
+    for (k=0;(REVIEWER[i].Willing[k]!=999)||(REVIEWER[i].Willing[k]==j);k++);
+    REVIEWER[i].Willing[k]=j;
+    Id=j;
+    for (j=0;(PAPER[j].Id!=Id)&&(j<PAPERS);j++);
+    if (PAPER[j].Id==Id){
+      for (k=0;(PAPER[j].WillingAuthor[k]!=999)&&(PAPER[j].WillingAuthor[k]!=i);k++);
+      PAPER[j].WillingAuthor[k]=i;
+    }
+    getc(fpWilling);
+  }
+
+  while (1){
+    if (fscanf(fpUnwilling,"| %d | ",&Id)==EOF)break;
+    for(i=0;REVIEWER[i].Id!=Id;i++);
+    fscanf(fpUnwilling,"%d | no     |",&j);
+    for (k=0;REVIEWER[i].Unwilling[k]!=999;k++);
+    REVIEWER[i].Unwilling[k]=j;
+    Id=j;
+    for (j=0;(PAPER[j].Id!=Id)&&(j<PAPERS);j++);
+    if (PAPER[j].Id==Id){
+      for (k=0;(PAPER[j].UnwillingAuthor[k]!=999)&&(PAPER[j].UnwillingAuthor[k]!=i);k++);
+      PAPER[j].UnwillingAuthor[k]=i;
+    }
+    getc(fpUnwilling);
+  }
+
+
+  fclose(fpPapers); fclose(fpReviewers);
+}
+\end
+
+\After everything else function:
+  //cout << "After everything else function called" << endl;
+\end
+
+\At the beginning of each generation function:{
+}
+\end
+
+\At the end of each generation function:
+  //cout << "At the end of each generation function called" << endl;
+\end
+
+\At each generation before reduce function:
+  //cout << "At each generation before replacement function called" << endl;
+\end
+
+\User classes :
+
+GenomeClass { 
+  float x[SIZE];
+  float sigma[SIZE]; // auto-adaptative mutation parameter
+}
+\end
+
+\GenomeClass::display:
+/* 	 for( size_t i=0 ; i<SIZE ; i++){ */
+/* 	      //     cout << Genome.x[i] << ":" << Genome.sigma[i] << "|"; */
+/* 	      printf("%.02f:%.02f|",Genome.x[i],Genome.sigma[i]); */
+/* 	 }	       */
+\end
+
+\GenomeClass::initialiser : // "initializer" is also accepted
+  for(int i=0; i<SIZE; i++ ) {
+     	Genome.x[i] = (float)random(0,1);
+	Genome.sigma[i]=(float)random(0.,0.5);
+	}
+\end
+
+\GenomeClass::crossover :
+  for (int i=0; i<SIZE; i++)
+  {
+    float alpha = (float)random(0.,1.); // barycentric crossover
+     child.x[i] = alpha*parent1.x[i] + (1.-alpha)*parent2.x[i];
+  }
+\end
+
+\GenomeClass::mutator : // Must return the number of mutations
+  int NbMut=0;
+  float pond = 1./sqrt((float)SIZE);
+
+    for (int i=0; i<SIZE; i++)
+    if (tossCoin(pMutPerGene)){
+    	NbMut++;
+       	Genome.sigma[i] = Genome.sigma[i] * exp(SIGMA*pond*2);
+       	Genome.sigma[i] = MIN(0.5,Genome.sigma[i]);              
+       	Genome.sigma[i] = MAX(0.,Genome.sigma[i]);
+       	Genome.x[i] += Genome.sigma[i]*2;
+       	Genome.x[i] = MIN(0,Genome.x[i]);              // pour eviter les depassements
+       	Genome.x[i] = MAX(1,Genome.x[i]);
+    	}
+return NbMut;
+\end
+
+\GenomeClass::evaluator : // Returns the score
+{
+  float Score= 0.0;       
+        
+  return Score;
+}
+\end
+
+\User Makefile options: 
+\end
+
+\Default run parameters :        // Please let the parameters appear in this order
+  Number of generations : 35   	// NB_GEN
+  Time limit: 0 			// In seconds, 0 to deactivate
+  Population size : 2048			//POP_SIZE
+  Offspring size : 2048 // 40% 
+  Mutation probability : 1       // MUT_PROB
+  Crossover probability : 1      // XOVER_PROB
+  Evaluator goal : minimise      // Maximise
+  Selection operator: Tournament 2.0
+  Surviving parents: 100%//percentage or absolute  
+  Surviving offspring: 100%
+  Reduce parents operator: Tournament 2
+  Reduce offspring operator: Tournament 2
+  Final reduce operator: Tournament 2
+
+  Elitism: Strong			//Weak or Strong
+  Elite: 1
+  Print stats: true				//Default: 1
+  Generate csv stats file:false			
+  Generate gnuplot script:false
+  Generate R script:false
+  Plot stats:true				//Default: 0
+
+  Remote island model: false
+  IP file: ip.txt 			//File containing all the remote island's IP
+  Server port : 2929
+  Migration probability: 0.33
+
+  Save population: false
+  Start from file:false
+\end
+	
