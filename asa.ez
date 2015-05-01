@@ -15,7 +15,7 @@ __________________________________________________________*/
 #define PAP_INST 10
 #define WILL_AUTH 100
 #define UNWILL_AUTH 100
-
+ 
 #define MAX_REVIEWERS 178
 #define REV_KEYW 20
 #define REV_WILL 50
@@ -88,8 +88,8 @@ inline int mystricmp(char *string1, char *string2){
 
   fpPapers=fopen("papers.txt","r");
   fpReviewers=fopen("review.txt","r");
-  fpWilling=fopen("wil.txt","r");
-  fpUnwilling=fopen("unw.txt","r");
+  //fpWilling=fopen("wil.txt","r");  ON A PAS CES FICHIERS ?? 
+  //fpUnwilling=fopen("unw.txt","r");
 
   for (i=0;i<MAX_PAPERS;i++) {
     strcpy(PAPER[i].Title," ");
@@ -160,10 +160,9 @@ inline int mystricmp(char *string1, char *string2){
   }
   REVIEWERS=i;
 
-  while (1){
-    if (fscanf(fpWilling,"| %d | ",&Id)==EOF)break;
+// FICHIER INEXISTANT DONC JE SUPPOSE YES POUR TOUS
     for(i=0;REVIEWER[i].Id!=Id;i++);
-    fscanf(fpWilling,"%d | yes    |",&j);
+    for(j=0;j<=207;j++);//Il ya 207 PAPER
     for (k=0;(REVIEWER[i].Willing[k]!=999)||(REVIEWER[i].Willing[k]==j);k++);
     REVIEWER[i].Willing[k]=j;
     Id=j;
@@ -172,25 +171,7 @@ inline int mystricmp(char *string1, char *string2){
       for (k=0;(PAPER[j].WillingAuthor[k]!=999)&&(PAPER[j].WillingAuthor[k]!=i);k++);
       PAPER[j].WillingAuthor[k]=i;
     }
-    getc(fpWilling);
-  }
-
-  while (1){
-    if (fscanf(fpUnwilling,"| %d | ",&Id)==EOF)break;
-    for(i=0;REVIEWER[i].Id!=Id;i++);
-    fscanf(fpUnwilling,"%d | no     |",&j);
-    for (k=0;REVIEWER[i].Unwilling[k]!=999;k++);
-    REVIEWER[i].Unwilling[k]=j;
-    Id=j;
-    for (j=0;(PAPER[j].Id!=Id)&&(j<PAPERS);j++);
-    if (PAPER[j].Id==Id){
-      for (k=0;(PAPER[j].UnwillingAuthor[k]!=999)&&(PAPER[j].UnwillingAuthor[k]!=i);k++);
-      PAPER[j].UnwillingAuthor[k]=i;
-    }
-    getc(fpUnwilling);
-  }
-
-
+  // DONC UNWILLING VIDE
   fclose(fpPapers); fclose(fpReviewers);
 }
 \end
@@ -213,56 +194,411 @@ inline int mystricmp(char *string1, char *string2){
 
 \User classes :
 
-GenomeClass { 
-  float x[SIZE];
-  float sigma[SIZE]; // auto-adaptative mutation parameter
+class Match{
+public:
+// Default methods for class Match
+  Match(){  // Constructor
+  }
+  Match(Match &EASEA_Var) {  // Copy constructor
+    {for(int EASEA_Ndx=0; EASEA_Ndx<4; EASEA_Ndx++)
+       reviewer[EASEA_Ndx]=EASEA_Var.reviewer[EASEA_Ndx];}
+    Nb=EASEA_Var.Nb;
+    Id=EASEA_Var.Id;
+    {for(int EASEA_Ndx=0; EASEA_Ndx<4; EASEA_Ndx++)
+       ReviewerId[EASEA_Ndx]=EASEA_Var.ReviewerId[EASEA_Ndx];}
+    {for(int EASEA_Ndx=0; EASEA_Ndx<4; EASEA_Ndx++)
+       KwMatch[EASEA_Ndx]=EASEA_Var.KwMatch[EASEA_Ndx];}
+    Will_Unwill_Contribution=EASEA_Var.Will_Unwill_Contribution;
+    KeywContribution=EASEA_Var.KeywContribution;
+  }
+  Match() {  // Destructor
+  }
+  Match& operator=(Match &EASEA_Var) {  // Operator=
+    if (&EASEA_Var == this) return *this;
+    {for(int EASEA_Ndx=0; EASEA_Ndx<4; EASEA_Ndx++)
+       reviewer[EASEA_Ndx] = EASEA_Var.reviewer[EASEA_Ndx];}
+    Nb = EASEA_Var.Nb;
+    Id = EASEA_Var.Id;
+    {for(int EASEA_Ndx=0; EASEA_Ndx<4; EASEA_Ndx++)
+       ReviewerId[EASEA_Ndx] = EASEA_Var.ReviewerId[EASEA_Ndx];}
+    {for(int EASEA_Ndx=0; EASEA_Ndx<4; EASEA_Ndx++)
+       KwMatch[EASEA_Ndx] = EASEA_Var.KwMatch[EASEA_Ndx];}
+    Will_Unwill_Contribution = EASEA_Var.Will_Unwill_Contribution;
+    KeywContribution = EASEA_Var.KeywContribution;
+  return *this;
+  }
+
+  bool operator==(Match &EASEA_Var) const {  // Operator==
+    {for(int EASEA_Ndx=0; EASEA_Ndx<4; EASEA_Ndx++)
+       if (reviewer[EASEA_Ndx]!=EASEA_Var.reviewer[EASEA_Ndx]) return gaFalse;}
+    if (Nb!=EASEA_Var.Nb) return gaFalse;
+    if (Id!=EASEA_Var.Id) return gaFalse;
+    {for(int EASEA_Ndx=0; EASEA_Ndx<4; EASEA_Ndx++)
+       if (ReviewerId[EASEA_Ndx]!=EASEA_Var.ReviewerId[EASEA_Ndx]) return gaFalse;}
+    {for(int EASEA_Ndx=0; EASEA_Ndx<4; EASEA_Ndx++)
+       if (KwMatch[EASEA_Ndx]!=EASEA_Var.KwMatch[EASEA_Ndx]) return gaFalse;}
+    if (Will_Unwill_Contribution!=EASEA_Var.Will_Unwill_Contribution) return gaFalse;
+    if (KeywContribution!=EASEA_Var.KeywContribution) return gaFalse;
+  return gaTrue;
+  }
+
+  bool operator!=(Match &EASEA_Var) const {return !(*this==EASEA_Var);} // operator!=
+
+  friend ostream& operator<< (ostream& os, const Match& EASEA_Var) { // Output stream insertion operator
+    {os << "Array reviewer : ";
+     for(int EASEA_Ndx=0; EASEA_Ndx<4; EASEA_Ndx++)
+       os << "[" << EASEA_Ndx << "]:" << EASEA_Var.reviewer[EASEA_Ndx] << "\t";}
+    os << "\n";
+    os <<  "Nb:" << EASEA_Var.Nb << "\n";
+    os <<  "Id:" << EASEA_Var.Id << "\n";
+    {os << "Array ReviewerId : ";
+     for(int EASEA_Ndx=0; EASEA_Ndx<4; EASEA_Ndx++)
+       os << "[" << EASEA_Ndx << "]:" << EASEA_Var.ReviewerId[EASEA_Ndx] << "\t";}
+    os << "\n";
+    {os << "Array KwMatch : ";
+     for(int EASEA_Ndx=0; EASEA_Ndx<4; EASEA_Ndx++)
+       os << "[" << EASEA_Ndx << "]:" << EASEA_Var.KwMatch[EASEA_Ndx] << "\t";}
+    os << "\n";
+    os <<  "Will_Unwill_Contribution:" << EASEA_Var.Will_Unwill_Contribution << "\n";
+    os <<  "KeywContribution:" << EASEA_Var.KeywContribution << "\n";
+    return os;
+  }
+
+  friend istream& operator>> (istream& is, Match& EASEA_Var) { // Input stream extraction operator
+    {for(int EASEA_Ndx=0; EASEA_Ndx<4; EASEA_Ndx++)
+       is >> EASEA_Var.reviewer[EASEA_Ndx];}
+    is >> EASEA_Var.Nb;
+    is >> EASEA_Var.Id;
+    {for(int EASEA_Ndx=0; EASEA_Ndx<4; EASEA_Ndx++)
+       is >> EASEA_Var.ReviewerId[EASEA_Ndx];}
+    {for(int EASEA_Ndx=0; EASEA_Ndx<4; EASEA_Ndx++)
+       is >> EASEA_Var.KwMatch[EASEA_Ndx];}
+    is >> EASEA_Var.Will_Unwill_Contribution;
+    is >> EASEA_Var.KeywContribution;
+    return is;
+  }
+
+// Class members
+  int reviewer[4];
+  int Nb;
+  int Id;
+  int ReviewerId[4];
+  int KwMatch[4];
+  int Will_Unwill_Contribution;
+  int KeywContribution;
+};
+
+inline int random(int b1=0, int b2=1){
+  return GARandomInt(b1,b2);
 }
+inline double random(double b1=0, double b2=1){
+  return GARandomDouble(b1,b2);
+}
+inline float random(float b1=0, float b2=1){
+  return GARandomFloat(b1,b2);
+}
+
+// User Genome                                          
+class ppsnGenome : public GAGenome {
+// Default methods for class ppsnGenome
+public:
+  GADefineIdentity("ppsnGenome", 251);
+  static void Initializer(GAGenome&);
+  static int Mutator(GAGenome&, float);
+  static float Comparator(const GAGenome&, const GAGenome&);
+  static float Evaluator(GAGenome&);
+  static int Crossover(const GAGenome&, const GAGenome&, GAGenome*, GAGenome*);
+public:
+  ppsnGenome::ppsnGenome() :GAGenome(Initializer, Mutator, Comparator){
+    evaluator(Evaluator); crossover(Crossover);
+  }
+  ppsnGenome(const ppsnGenome & orig) {
+    copy(orig);
+  }
+  ~ppsnGenome() {
+// Destructing pointers
+  }
+  ppsnGenome& operator=(const ppsnGenome &);
+  virtual GAGenome *clone(GAGenome::CloneMethod) const ;
+  virtual void copy(const GAGenome & c);
+  virtual int equal(const GAGenome& g) const;
+  virtual int read(istream & is);
+  virtual int write(ostream & os) const ;
+
+// Class members
+  int TotalKeywContribution;
+  int Will_Unwill_Contribution;
+  int NbPapersPerReviewerContribution;
+  int Distribution[10];
+  int NbPapersPerReviewer[178];
+  Match paper[155];
+};
+
+ppsnGenome& ppsnGenome::operator=(const ppsnGenome & arg){ 
+  copy(arg); 
+  return *this;
+}
+
+void ppsnGenome::copy(const GAGenome& g) {
+  if(&g != this){
+    GAGenome::copy(g);    // copy the base class part
+    ppsnGenome & genome = (ppsnGenome &)g;
+// Memberwise copy
+    TotalKeywContribution=genome.TotalKeywContribution;
+    Will_Unwill_Contribution=genome.Will_Unwill_Contribution;
+    NbPapersPerReviewerContribution=genome.NbPapersPerReviewerContribution;
+    {for(int EASEA_Ndx=0; EASEA_Ndx<10; EASEA_Ndx++)
+       Distribution[EASEA_Ndx]=genome.Distribution[EASEA_Ndx];}
+    {for(int EASEA_Ndx=0; EASEA_Ndx<178; EASEA_Ndx++)
+       NbPapersPerReviewer[EASEA_Ndx]=genome.NbPapersPerReviewer[EASEA_Ndx];}
+    {for(int EASEA_Ndx=0; EASEA_Ndx<155; EASEA_Ndx++)
+       paper[EASEA_Ndx]=genome.paper[EASEA_Ndx];}
+  }
+}
+
+GAGenome*ppsnGenome::clone(GAGenome::CloneMethod) const {
+  return new ppsnGenome(*this);
+}
+
+int ppsnGenome::equal(const GAGenome& g) const {
+  ppsnGenome& genome = (ppsnGenome&)g;
+// Default diversity test (required by GALib)
+  if (TotalKeywContribution!=genome.TotalKeywContribution) return 0;
+  if (Will_Unwill_Contribution!=genome.Will_Unwill_Contribution) return 0;
+  if (NbPapersPerReviewerContribution!=genome.NbPapersPerReviewerContribution) return 0;
+  {for(int EASEA_Ndx=0; EASEA_Ndx<10; EASEA_Ndx++)
+     if (Distribution[EASEA_Ndx]!=genome.Distribution[EASEA_Ndx]) return 0;}
+  {for(int EASEA_Ndx=0; EASEA_Ndx<178; EASEA_Ndx++)
+     if (NbPapersPerReviewer[EASEA_Ndx]!=genome.NbPapersPerReviewer[EASEA_Ndx]) return 0;}
+  {for(int EASEA_Ndx=0; EASEA_Ndx<155; EASEA_Ndx++)
+     if (paper[EASEA_Ndx]!=genome.paper[EASEA_Ndx]) return 0;}
+  return 1;
+}
+
+float ppsnGenome::Comparator(const GAGenome& a, const GAGenome& b) {
+  ppsnGenome& sis = (ppsnGenome &)a;
+  ppsnGenome& bro = (ppsnGenome &)b;
+  int diff = 0;
+// Default genome comparator (required by GALib)
+  if (sis.TotalKeywContribution!=bro.TotalKeywContribution) diff++;
+  if (sis.Will_Unwill_Contribution!=bro.Will_Unwill_Contribution) diff++;
+  if (sis.NbPapersPerReviewerContribution!=bro.NbPapersPerReviewerContribution) diff++;
+  {for(int EASEA_Ndx=0; EASEA_Ndx<10; EASEA_Ndx++)
+     if (sis.Distribution[EASEA_Ndx]!=bro.Distribution[EASEA_Ndx]) diff++;}
+  {for(int EASEA_Ndx=0; EASEA_Ndx<178; EASEA_Ndx++)
+     if (sis.NbPapersPerReviewer[EASEA_Ndx]!=bro.NbPapersPerReviewer[EASEA_Ndx]) diff++;}
+  {for(int EASEA_Ndx=0; EASEA_Ndx<155; EASEA_Ndx++)
+     if (sis.paper[EASEA_Ndx]!=bro.paper[EASEA_Ndx]) diff++;}
+  return (float)diff;
+} 
+
+int ppsnGenome::read(istream & is) {
+// Default read command (required by GALib)
+  is >> TotalKeywContribution;
+  is >> Will_Unwill_Contribution;
+  is >> NbPapersPerReviewerContribution;
+  {for(int EASEA_Ndx=0; EASEA_Ndx<10; EASEA_Ndx++)
+     is >> Distribution[EASEA_Ndx];}
+  {for(int EASEA_Ndx=0; EASEA_Ndx<178; EASEA_Ndx++)
+     is >> NbPapersPerReviewer[EASEA_Ndx];}
+  {for(int EASEA_Ndx=0; EASEA_Ndx<155; EASEA_Ndx++)
+     is >> paper[EASEA_Ndx];}
+  return is.fail() ? 1 : 0;
+}
+
+int ppsnGenome::write(ostream & os) const {
+// Default write command (required by GALib)
+  os << "TotalKeywContribution:" << TotalKeywContribution << "\n";
+  os << "Will_Unwill_Contribution:" << Will_Unwill_Contribution << "\n";
+  os << "NbPapersPerReviewerContribution:" << NbPapersPerReviewerContribution << "\n";
+  {os << "Array Distribution : ";
+   for(int EASEA_Ndx=0; EASEA_Ndx<10; EASEA_Ndx++)
+     os << "[" << EASEA_Ndx << "]:" << Distribution[EASEA_Ndx] << "\t";}
+  os << "\n";
+  {os << "Array NbPapersPerReviewer : ";
+   for(int EASEA_Ndx=0; EASEA_Ndx<178; EASEA_Ndx++)
+     os << "[" << EASEA_Ndx << "]:" << NbPapersPerReviewer[EASEA_Ndx] << "\t";}
+  os << "\n";
+  {os << "Array paper : ";
+   for(int EASEA_Ndx=0; EASEA_Ndx<155; EASEA_Ndx++)
+     os << "[" << EASEA_Ndx << "]:" << paper[EASEA_Ndx] << "\t";}
+  os << "\n";
+  return os.fail() ? 1 : 0;
+}
+
 \end
 
 \GenomeClass::display:
-/* 	 for( size_t i=0 ; i<SIZE ; i++){ */
-/* 	      //     cout << Genome.x[i] << ":" << Genome.sigma[i] << "|"; */
-/* 	      printf("%.02f:%.02f|",Genome.x[i],Genome.sigma[i]); */
-/* 	 }	       */
+  printf("TotalKeywContribution:%f\n", TotalKeywContribution);
+  printf("Will_Unwill_Contribution:%f\n", Will_Unwill_Contribution);
+  printf("NbPapersPerReviewerContribution:%f\n", NbPapersPerReviewerContribution);
+  printf("Array Distribution :\n");
+   for(int EASEA_Ndx=0; EASEA_Ndx<10; EASEA_Ndx++)
+     printf("[%f]:%f\t", EASEA_Ndx,Distribution[EASEA_Ndx]);
+   printf("Array NbPapersPerReviewer :\n");
+   for(int EASEA_Ndx=0; EASEA_Ndx<178; EASEA_Ndx++)
+     printf("[%f]:%f\t", EASEA_Ndx,NbPapersPerReviewer[EASEA_Ndx]);
+   printf("Array paper :\n");
+   for(int EASEA_Ndx=0; EASEA_Ndx<155; EASEA_Ndx++)
+    printf("[%f]:%f\t", EASEA_Ndx,paper[EASEA_Ndx]); 
 \end
 
 \GenomeClass::initialiser : // "initializer" is also accepted
-  for(int i=0; i<SIZE; i++ ) {
-     	Genome.x[i] = (float)random(0,1);
-	Genome.sigma[i]=(float)random(0.,0.5);
-	}
+  int i,j,k,nbWillingAuthors,again;
+  for (i=0;i<PAPERS;i++){
+    Genome.paper[i].KeywContribution=0;
+    Genome.paper[i].Id=PAPER[i].Id;
+// Choosing reviewers
+    for (nbWillingAuthors=0;PAPER[i].WillingAuthor[nbWillingAuthors]!=999;nbWillingAuthors++);
+    if (nbWillingAuthors<=REV_PER_PAPER){
+      for(j=0;j<nbWillingAuthors;j++){
+        Genome.paper[i].reviewer[j]=PAPER[i].WillingAuthor[j];
+        Genome.paper[i].ReviewerId[j]=REVIEWER[Genome.paper[i].reviewer[j]].Id;
+      }
+      for (;j<REV_PER_PAPER;j++){
+        do {
+          again=0;
+          Genome.paper[i].reviewer[j]=GARandomInt(0,REVIEWERS-1);
+// refuse the reviewer if he is unwilling to review the paper
+          for(k=0;(PAPER[i].UnwillingAuthor[k]!=999)&&(k<UNWILL_AUTH);k++)
+            if(PAPER[i].UnwillingAuthor[k]==Genome.paper[i].reviewer[j]) {again=1;break;}
+          for (k=0;(k<j)&&(again==0);k++) if (Genome.paper[i].reviewer[k]==Genome.paper[i].reviewer[j]) {again=1;break;}
+        } while (again) ;
+        Genome.paper[i].ReviewerId[j]=REVIEWER[Genome.paper[i].reviewer[j]].Id;
+      }
+    }
+    else {
+      for (j=0;j<REV_PER_PAPER;j++){
+        do {
+          again=0;
+          Genome.paper[i].reviewer[j]=PAPER[i].WillingAuthor[GARandomInt(0,nbWillingAuthors-1)];
+// refuse the reviewer if he is unwilling to review the paper
+          for(k=0;(PAPER[i].UnwillingAuthor[k]!=999)&&(k<UNWILL_AUTH);k++)
+            if(PAPER[i].UnwillingAuthor[k]==Genome.paper[i].reviewer[j]) {again=1;break;}
+          for (k=0;k<j;k++) if (Genome.paper[i].reviewer[k]==Genome.paper[i].reviewer[j]) again++;
+        } while (again) ;
+        Genome.paper[i].ReviewerId[j]=REVIEWER[Genome.paper[i].reviewer[j]].Id;
+      }
+    }
+  }
+
+Genome._evaluated=gaFalse;
+
 \end
 
 \GenomeClass::crossover :
-  for (int i=0; i<SIZE; i++)
-  {
-    float alpha = (float)random(0.,1.); // barycentric crossover
-     child.x[i] = alpha*parent1.x[i] + (1.-alpha)*parent2.x[i];
-  }
+  int i,j;
+  int pos=GARandomInt(0,PAPERS-1); // Picks a GARandomInt site named pos
+    for(i=pos;i<PAPERS;i++)
+      for(j=0;j<REV_PER_PAPER;j++)
+        child.paper[i].reviewer[j]=parent1.paper[i].reviewer[j];
 \end
 
 \GenomeClass::mutator : // Must return the number of mutations
-  int NbMut=0;
-  float pond = 1./sqrt((float)SIZE);
+ 
+// Must return the number of mutations as an int
+  int i,j,k,again,nbMut=0;
+  for (i=0;i<PAPERS;i++) 
+    if (GAFlipCoin(pmut)){
+      for(j=0;j<REV_PER_PAPER;j++)
+        if (GAFlipCoin(1-pmut)) do {
+          again=0;
+          Genome.paper[i].reviewer[j]=GARandomInt(0,REVIEWERS-1);
+// refuse the reviewer if he is unwilling to review the paper
+          for(k=0;(PAPER[i].UnwillingAuthor[k]!=999)&&(k<UNWILL_AUTH);k++)
+            if(PAPER[i].UnwillingAuthor[k]==Genome.paper[i].reviewer[j]) {again=1;break;}
+          for (k=0;k<j;k++) if (Genome.paper[i].reviewer[k]==Genome.paper[i].reviewer[j]) again++;
+        } while (again) ;
+      nbMut++;
+    }
+  return nbMut;
 
-    for (int i=0; i<SIZE; i++)
-    if (tossCoin(pMutPerGene)){
-    	NbMut++;
-       	Genome.sigma[i] = Genome.sigma[i] * exp(SIGMA*pond*2);
-       	Genome.sigma[i] = MIN(0.5,Genome.sigma[i]);              
-       	Genome.sigma[i] = MAX(0.,Genome.sigma[i]);
-       	Genome.x[i] += Genome.sigma[i]*2;
-       	Genome.x[i] = MIN(0,Genome.x[i]);              // pour eviter les depassements
-       	Genome.x[i] = MAX(1,Genome.x[i]);
-    	}
-return NbMut;
 \end
 
 \GenomeClass::evaluator : // Returns the score
 {
-  float Score= 0.0;       
-        
-  return Score;
+  int contrib,i,j,k,l,matches,NbPapKwds,eval,nTemp;
+  char *cpTemp;
+  float f;
+  clock_t EZ_t1;
+
+  for (i=0;i<REVIEWERS;Genome.NbPapersPerReviewer[i++]=0);
+  for (i=0;i<10;Genome.Distribution[i++]=0);
+  Genome.Will_Unwill_Contribution=0;
+  Genome.TotalKeywContribution=0;
+
+  EZ_t1=clock();
+  for (i=0;i<PAPERS;i++) {
+    contrib=0;
+    Genome.paper[i].Will_Unwill_Contribution=0;
+    Genome.paper[i].Id=PAPER[i].Id;
+    Genome.paper[i].Nb=i;
+    for(j=0;j<REV_PER_PAPER;j++){
+      Genome.paper[i].ReviewerId[j]=REVIEWER[Genome.paper[i].reviewer[j]].Id;
+
+       matches=0;
+      for (NbPapKwds=0;(NbPapKwds<PAP_KEYW)&&((PAPER[i].Keyword[NbPapKwds])[0]!=' ');NbPapKwds++); // Determines the nb of keywords for the current paper.
+      if ((REVIEWER[Genome.paper[i].reviewer[j]].Keyword[0])[0]==' '){
+        contrib+=5; // If the reviewer has no keyword list, we suppose this is equivalent to an average match (5/10)
+        Genome.paper[i].KwMatch[j]=-1; // We signal the fact that the reviewer has no keywords by indicating "-1"
+      }
+      else {
+        for(k=0;k<REV_KEYW;k++){
+          cpTemp=&((REVIEWER[Genome.paper[i].reviewer[j]].Keyword[k])[0]);
+          if (cpTemp[0]==' ') break;
+          for(l=0;l<PAP_KEYW;l++){
+            if ((PAPER[i].Keyword[l])[0]==' ') break;
+            if (!strcmp(cpTemp,PAPER[i].Keyword[l]) ) matches++;
+          }
+        }
+        if (matches==0) contrib-=10; // we discourage ill matching
+        else contrib+=(matches*10)/NbPapKwds; // With this calculation,  a reviewer matching all the paper keywords gets 10/10
+        Genome.paper[i].KwMatch[j]=matches;
+      }
+
+      // if paper and reviewer come from the same institution
+      cpTemp=&((REVIEWER[Genome.paper[i].reviewer[j]].Institution)[0]);
+      for(k=0;k<PAP_INST;k++){
+        if (PAPER[i].Institution[k][0]==' ') break;
+        if (!mystricmp(cpTemp,PAPER[i].Institution[k])) contrib-=1000;
+      }
+
+// if the reviewer has been willing to review the paper
+      nTemp=Genome.paper[i].Id;
+      for(k=0;k<REV_WILL;k++){
+        if (REVIEWER[Genome.paper[i].reviewer[j]].Willing[k]==999) break;
+        if (REVIEWER[Genome.paper[i].reviewer[j]].Willing[k]==nTemp) Genome.paper[i].Will_Unwill_Contribution+=10;
+      }
+
+      Genome.NbPapersPerReviewer[Genome.paper[i].reviewer[j]]++;
+
+//--------------------------------------------------------------------------
+    }
+  Genome.paper[i].KeywContribution=contrib;
+  Genome.TotalKeywContribution +=contrib;
+  Genome.Will_Unwill_Contribution+=Genome.paper[i].Will_Unwill_Contribution;
+  }
+
+  contrib=0;
+
+  for (i=0;i<REVIEWERS;i++){ 
+    if (Genome.NbPapersPerReviewer[i]>=9) Genome.Distribution[9]++;
+    else Genome.Distribution[Genome.NbPapersPerReviewer[i]]++;
+    if (REV_PER_PAPER*PAPERS/REVIEWERS<1) {
+      if (Genome.NbPapersPerReviewer[i]>1) contrib -= 10*(Genome.NbPapersPerReviewer[i] -1);
+    }
+    else{
+      f=Genome.NbPapersPerReviewer[i]-REV_PER_PAPER*((float)PAPERS/(float)REVIEWERS);
+      if (f>5) f=5;
+      if (f>0.6) contrib -= (int)pow(5,f);   
+      if (f<0.6) contrib +=(int)(10*f);    
+    }
+  }
+  Genome.NbPapersPerReviewerContribution=contrib;
+
+  eval = 100000+Genome.TotalKeywContribution+Genome.Will_Unwill_Contribution+Genome.NbPapersPerReviewerContribution;
+  EZ_EVAL+=(double)(clock()-EZ_t1);
+  return (float) (float) (double)(eval<0 ? 0 : eval);
 }
 \end
 
@@ -270,11 +606,11 @@ return NbMut;
 \end
 
 \Default run parameters :        // Please let the parameters appear in this order
-  Number of generations : 35   	// NB_GEN
+  Number of generations : 40   	// NB_GEN
   Time limit: 0 			// In seconds, 0 to deactivate
-  Population size : 2048			//POP_SIZE
-  Offspring size : 2048 // 40% 
-  Mutation probability : 1       // MUT_PROB
+  Population size : 1000			//POP_SIZE
+  Offspring size : 200 // 40% 
+  Mutation probability : 0.2     // MUT_PROB
   Crossover probability : 1      // XOVER_PROB
   Evaluator goal : minimise      // Maximise
   Selection operator: Tournament 2.0
